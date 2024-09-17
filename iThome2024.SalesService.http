@@ -1,0 +1,6 @@
+@iThome2024.SalesService_HostAddress = http://localhost:5078
+
+GET {{iThome2024.SalesService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
