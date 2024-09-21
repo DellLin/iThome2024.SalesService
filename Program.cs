@@ -1,5 +1,8 @@
 using iThome2024.SalesService.Data;
+using iThome2024.SalesService.Service;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +12,7 @@ builder.Services.AddDbContext<TicketSalesContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("TicketSalesContext"));
 });
+builder.Services.AddSingleton<RedisService>(new RedisService(builder.Configuration.GetConnectionString("Redis")!));
 
 var app = builder.Build();
 
@@ -18,13 +22,28 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 
-app.MapGet("/TestDbConnection", (TicketSalesContext context) =>
+
+app.MapGet("/Test/DbConnection", (TicketSalesContext context) =>
 {
     return context.Database.CanConnect();
 })
 .WithName("TestDbConnection")
-.WithOpenApi(); ;
+.WithOpenApi();
+
+app.MapPost("/Test/RedisAddString", (RedisService redisService, string key, string value) =>
+{
+    redisService.StringSet(key, value);
+    return $"Set {key} to {value}";
+})
+.WithName("TestRedisAddString")
+.WithOpenApi();
+
+app.MapGet("/Test/RedisGetString", (string key, RedisService redisService) =>
+{
+    return redisService.StringGet(key).ToString();
+})
+.WithName("TestRedisGetString")
+.WithOpenApi();
 
 app.Run();
