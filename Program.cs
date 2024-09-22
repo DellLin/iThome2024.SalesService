@@ -1,10 +1,13 @@
 using iThome2024.SalesService.Service;
+using Microsoft.AspNetCore.Mvc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<RedisService>(new RedisService(builder.Configuration.GetConnectionString("Redis")!));
-
+builder.Services.AddSingleton(new RedisService(builder.Configuration.GetConnectionString("Redis")!));
+builder.Services.AddSingleton(
+    new PublisherService(builder.Configuration["GoogleCloud:ProjectId"] ?? "",
+                         builder.Configuration["GoogleCloud:PubSub-Ticket:TopicId"] ?? ""));
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -28,7 +31,7 @@ app.MapGet("/Test/RedisGetString", (string key, RedisService redisService) =>
 .WithName("TestRedisGetString")
 .WithOpenApi();
 
-app.MapPost("/Test/PubSubPublishMessage", async (string message, PublisherService publisherService) =>
+app.MapPost("/Test/PubSubPublishMessage", async (string message, [FromServices] PublisherService publisherService) =>
 {
     return await publisherService.Publish(message);
 })
