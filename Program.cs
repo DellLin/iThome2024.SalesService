@@ -46,4 +46,18 @@ app.MapGet("/Test/RedisGetString", (string key, RedisService redisService) =>
 .WithName("TestRedisGetString")
 .WithOpenApi();
 
+app.MapPost("/Test/PubSubPublishMessage", async (string message, PublisherService publisherService) =>
+{
+    return await publisherService.Publish(message);
+})
+.WithName("TestPubSubPublishMessage")
+.WithOpenApi();
+
+app.MapGet("/Test/PubSubSubscribeMessage", async (SubscriberService subscriberService) =>
+{
+    return await subscriberService.Subscribe();
+})
+.WithName("TestPubSubSubscribeMessage")
+.WithOpenApi();
+
 app.Run();
