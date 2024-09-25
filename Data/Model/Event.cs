@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace iThome2024.SalesService.Data.Model;
 
@@ -18,6 +19,6 @@ public class Event
     public string? Description { get; set; }
     [Column(TypeName = "varchar(500)")]
     public string? Remark { get; set; }
-    public List<Seat> Seats { get; } = new();
+    public List<Seat>? Seats { get; set; }
 
 }
