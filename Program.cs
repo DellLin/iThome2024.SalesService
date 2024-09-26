@@ -11,6 +11,7 @@ using iThome2024.SalesService.Data.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -189,11 +190,18 @@ app.MapGet("/api/event/{id}", async (int id, [FromServices] TicketSalesContext c
         {
             return Results.NotFound();
         }
-        foreach (var property in entry.GetType().GetProperties())
+        //HashSetAllAsync
+        await redisService.HashSetAllAsync($"Event:{entry.Id}", new Dictionary<string, string>
         {
-            if (property.Name != "Seats")
-            { await redisService.HashSetAsync($"Event:{entry.Id}", property.Name, property.GetValue(entry)!.ToString()!); }
-        }
+            { "Name", entry.Name },
+            { "EventDate", entry.EventDate.ToString() },
+            { "StartSalesDate", entry.StartSalesDate.ToString() },
+            { "EndSalesDate", entry.EndSalesDate.ToString() },
+            { "Description", entry.Description },
+            { "Remark", entry.Remark },
+            { "Seats", JsonSerializer.Serialize(entry.Seats) }
+        });
+
         await redisService.HashSetAsync($"Event:{entry.Id}", "Seats", JsonSerializer.Serialize(entry.Seats));
         return Results.Ok(entry);
     }
@@ -291,5 +299,63 @@ app.MapDelete("/api/event/{id}", async (int id, [FromServices] TicketSalesContex
     await context.SaveChangesAsync();
     return Results.NoContent();
 });
+#endregion
+
+#region Ticket API
+
+app.MapPost("/api/ticket", async (
+    TicketViewModel model,
+    [FromServices] RedisService redisService,
+    [FromServices] PublisherService publisherService,
+     ClaimsPrincipal user) =>
+{
+    try
+    {
+        // 取得使用者名稱
+        model.Username = user.Identity!.Name;
+        // 判斷活動是否存在
+        var eventObj = await redisService.HashGetAllAsync($"Event:{model.EventId}");
+        if (eventObj.Count == 0)
+        {
+            return Results.BadRequest("Event not found");
+        }
+        // 判斷座位是否存在
+        var seats = JsonSerializer.Deserialize<List<Seat>>(eventObj["Seats"]);
+        if ((!seats?.Any(t => t.Id == model.SeatId)) ?? true)
+        {
+            return Results.BadRequest("Seat not found");
+        }
+        // 判斷座位是否已售出
+        var key = $"Ticket:{model.EventId}:{model.SeatId}";
+        if (await redisService.KeyExistsAsync(key))
+        {
+            return Results.BadRequest("Ticket already exists");
+        }
+        var addSet = await redisService.SetAddAsync($"Seat:{model.EventId}", model.SeatId.ToString());
+        // 購票成功在 Redis 暫存購票紀錄
+        if (addSet)
+        {
+            await redisService.HashSetAllAsync(key, new Dictionary<string, string>
+            {
+                { "EventId", model.EventId.ToString() },
+                { "SeatId", model.SeatId.ToString() },
+                { "Username", model.Username! },
+                { "CreateTime",model.CreateTime.ToString() }
+            });
+            await publisherService.Publish(JsonSerializer.Serialize(model));
+        }
+        else
+        {
+            return Results.BadRequest("Seat already sold");
+        }
+        return Results.Created($"/api/ticket/{model.EventId}/{model.SeatId}", model);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+})
+.RequireAuthorization();
+
 #endregion
 app.Run();

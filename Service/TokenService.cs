@@ -16,7 +16,7 @@ public class TokenService(IConfiguration configuration)
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, username),
+            new Claim(ClaimTypes.Name, username),
         };
 
         var token = new JwtSecurityToken(

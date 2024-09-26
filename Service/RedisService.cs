@@ -42,7 +42,11 @@ public class RedisService
     {
         return (await _db.HashGetAsync(key, field)).ToString();
     }
-
+    public async Task HashSetAllAsync(string key, Dictionary<string, string> entries)
+    {
+        var hashEntries = entries.Select(x => new HashEntry(x.Key, x.Value)).ToArray();
+        await _db.HashSetAsync(key, hashEntries);
+    }
     public async Task<Dictionary<string, string>> HashGetAllAsync(string key)
     {
         var hashEntries = await _db.HashGetAllAsync(key);
@@ -61,4 +65,9 @@ public class RedisService
         var sortedSetEntries = await _db.SortedSetRangeByRankAsync(key, start, stop);
         return sortedSetEntries.Select(x => x.ToString()).ToList();
     }
+    public async Task<bool> SetAddAsync(string key, string value)
+    {
+        return await _db.SetAddAsync(key, value);
+    }
+
 }
