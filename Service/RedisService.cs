@@ -65,9 +65,18 @@ public class RedisService
         var sortedSetEntries = await _db.SortedSetRangeByRankAsync(key, start, stop);
         return sortedSetEntries.Select(x => x.ToString()).ToList();
     }
+    //add a list to set
+    public async Task<long> SetAddAsync(string key, List<string> values)
+    {
+        var setValues = values.Select(x => (RedisValue)x).ToArray();
+        return await _db.SetAddAsync(key, setValues);
+    }
     public async Task<bool> SetAddAsync(string key, string value)
     {
         return await _db.SetAddAsync(key, value);
     }
-
+    public async Task<bool> SetRemoveAsync(string key, string value)
+    {
+        return await _db.SetRemoveAsync(key, value);
+    }
 }

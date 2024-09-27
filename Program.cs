@@ -201,7 +201,6 @@ app.MapGet("/api/event/{id}", async (int id, [FromServices] TicketSalesContext c
             { "Remark", entry.Remark },
             { "Seats", JsonSerializer.Serialize(entry.Seats) }
         });
-
         await redisService.HashSetAsync($"Event:{entry.Id}", "Seats", JsonSerializer.Serialize(entry.Seats));
         return Results.Ok(entry);
     }
@@ -352,7 +351,10 @@ app.MapPost("/api/ticket", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(ex.Message);
+        return Results.Problem(
+        detail: ex.StackTrace,
+        statusCode: 500,
+        title: ex.Message);
     }
 })
 .RequireAuthorization();
