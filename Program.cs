@@ -322,7 +322,7 @@ app.MapPost("/api/ticket", async (
             return Results.BadRequest("Event not found");
         }
         checkEventStopWatch.Stop();
-        app.Logger.LogDebug($"Check Event Elapsed: {checkEventStopWatch.ElapsedMilliseconds} ms");
+        app.Logger.LogInformation($"Check Event Elapsed: {checkEventStopWatch.ElapsedMilliseconds} ms");
         // 判斷座位是否存在
         var checkSeatStopWatch = new Stopwatch();
         checkSeatStopWatch.Start();
@@ -332,7 +332,7 @@ app.MapPost("/api/ticket", async (
             return Results.BadRequest("Seat not found");
         }
         checkSeatStopWatch.Stop();
-        app.Logger.LogDebug($"Check Seat Elapsed: {checkSeatStopWatch.ElapsedMilliseconds} ms");
+        app.Logger.LogInformation($"Check Seat Elapsed: {checkSeatStopWatch.ElapsedMilliseconds} ms");
         // 判斷座位是否已售出
         var checkTicketStopWatch = new Stopwatch();
         checkTicketStopWatch.Start();
@@ -342,13 +342,13 @@ app.MapPost("/api/ticket", async (
             return Results.BadRequest("Ticket already exists");
         }
         checkTicketStopWatch.Stop();
-        app.Logger.LogDebug($"Check Ticket Elapsed: {checkTicketStopWatch.ElapsedMilliseconds} ms");
+        app.Logger.LogInformation($"Check Ticket Elapsed: {checkTicketStopWatch.ElapsedMilliseconds} ms");
         // 儲存購票紀錄
         var saveTicketStopWatch = new Stopwatch();
         saveTicketStopWatch.Start();
         var addSet = await redisService.SetAddAsync($"Seat:{model.EventId}", model.SeatId.ToString());
         saveTicketStopWatch.Stop();
-        app.Logger.LogDebug($"Save Ticket Elapsed: {saveTicketStopWatch.ElapsedMilliseconds} ms");
+        app.Logger.LogInformation($"Save Ticket Elapsed: {saveTicketStopWatch.ElapsedMilliseconds} ms");
         // 購票成功在 Redis 暫存購票紀錄
         if (addSet)
         {
@@ -364,7 +364,7 @@ app.MapPost("/api/ticket", async (
             });
             await publisherService.Publish(JsonSerializer.Serialize(model));
             addTicketStopWatch.Stop();
-            app.Logger.LogDebug($"Add Ticket Elapsed: {addTicketStopWatch.ElapsedMilliseconds} ms");
+            app.Logger.LogInformation($"Add Ticket Elapsed: {addTicketStopWatch.ElapsedMilliseconds} ms");
         }
         else
         {
