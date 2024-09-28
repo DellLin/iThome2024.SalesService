@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
 using System.Security.Claims;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -313,27 +314,47 @@ app.MapPost("/api/ticket", async (
         // 取得使用者名稱
         model.Username = user.Identity!.Name;
         // 判斷活動是否存在
+        var checkEventStopWatch = new Stopwatch();
+        checkEventStopWatch.Start();
         var eventObj = await redisService.HashGetAllAsync($"Event:{model.EventId}");
         if (eventObj.Count == 0)
         {
             return Results.BadRequest("Event not found");
         }
+        checkEventStopWatch.Stop();
+        app.Logger.LogDebug($"Check Event Elapsed: {checkEventStopWatch.ElapsedMilliseconds} ms");
         // 判斷座位是否存在
+        var checkSeatStopWatch = new Stopwatch();
+        checkSeatStopWatch.Start();
         var seats = JsonSerializer.Deserialize<List<Seat>>(eventObj["Seats"]);
         if ((!seats?.Any(t => t.Id == model.SeatId)) ?? true)
         {
             return Results.BadRequest("Seat not found");
         }
+        checkSeatStopWatch.Stop();
+        app.Logger.LogDebug($"Check Seat Elapsed: {checkSeatStopWatch.ElapsedMilliseconds} ms");
         // 判斷座位是否已售出
+        var checkTicketStopWatch = new Stopwatch();
+        checkTicketStopWatch.Start();
         var key = $"Ticket:{model.EventId}:{model.SeatId}";
         if (await redisService.KeyExistsAsync(key))
         {
             return Results.BadRequest("Ticket already exists");
         }
+        checkTicketStopWatch.Stop();
+        app.Logger.LogDebug($"Check Ticket Elapsed: {checkTicketStopWatch.ElapsedMilliseconds} ms");
+        // 儲存購票紀錄
+        var saveTicketStopWatch = new Stopwatch();
+        saveTicketStopWatch.Start();
         var addSet = await redisService.SetAddAsync($"Seat:{model.EventId}", model.SeatId.ToString());
+        saveTicketStopWatch.Stop();
+        app.Logger.LogDebug($"Save Ticket Elapsed: {saveTicketStopWatch.ElapsedMilliseconds} ms");
         // 購票成功在 Redis 暫存購票紀錄
         if (addSet)
         {
+
+            var addTicketStopWatch = new Stopwatch();
+            addTicketStopWatch.Start();
             await redisService.HashSetAllAsync(key, new Dictionary<string, string>
             {
                 { "EventId", model.EventId.ToString() },
@@ -342,6 +363,8 @@ app.MapPost("/api/ticket", async (
                 { "CreateTime",model.CreateTime.ToString() }
             });
             await publisherService.Publish(JsonSerializer.Serialize(model));
+            addTicketStopWatch.Stop();
+            app.Logger.LogDebug($"Add Ticket Elapsed: {addTicketStopWatch.ElapsedMilliseconds} ms");
         }
         else
         {
