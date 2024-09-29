@@ -203,6 +203,8 @@ app.MapGet("/api/event/{id}", async (int id, [FromServices] TicketSalesContext c
             { "Seats", JsonSerializer.Serialize(entry.Seats) }
         });
         await redisService.HashSetAsync($"Event:{entry.Id}", "Seats", JsonSerializer.Serialize(entry.Seats));
+        // 寫入全部座位
+        await redisService.SetAddAsync($"Seat:{entry.Id}", entry.Seats?.Select(t => t.Id.ToString()).ToList() ?? []);
         return Results.Ok(entry);
     }
 });
@@ -323,53 +325,43 @@ app.MapPost("/api/ticket", async (
         checkEventStopWatch.Stop();
         app.Logger.LogInformation($"Check Event Elapsed: {checkEventStopWatch.ElapsedMilliseconds} ms");
         // 判斷座位是否存在
-        // var checkSeatStopWatch = new Stopwatch();
-        // checkSeatStopWatch.Start();
-        // var seats = JsonSerializer.Deserialize<List<Seat>>(eventObj["Seats"]);
-        // if ((!seats?.Any(t => t.Id == model.SeatId)) ?? true)
-        // {
-        //     return Results.BadRequest("Seat not found");
-        // }
-        // checkSeatStopWatch.Stop();
-        // app.Logger.LogInformation($"Check Seat Elapsed: {checkSeatStopWatch.ElapsedMilliseconds} ms");
-        // 判斷座位是否已售出
-        var checkTicketStopWatch = new Stopwatch();
-        checkTicketStopWatch.Start();
+        var checkSeatStopWatch = new Stopwatch();
+        checkSeatStopWatch.Start();
         var key = $"Ticket:{model.EventId}:{model.SeatId}";
-        if (await redisService.KeyExistsAsync(key))
+        if (!await redisService.SetRemoveAsync($"Seat:{model.EventId}", model.SeatId.ToString()))
         {
-            return Results.BadRequest("Ticket already exists");
-        }
-        checkTicketStopWatch.Stop();
-        app.Logger.LogInformation($"Check Ticket Elapsed: {checkTicketStopWatch.ElapsedMilliseconds} ms");
-        // 儲存購票紀錄
-        var saveTicketStopWatch = new Stopwatch();
-        saveTicketStopWatch.Start();
-        var addSet = await redisService.SetAddAsync($"Seat:{model.EventId}", model.SeatId.ToString());
-        saveTicketStopWatch.Stop();
-        app.Logger.LogInformation($"Save Ticket Elapsed: {saveTicketStopWatch.ElapsedMilliseconds} ms");
-        // 購票成功在 Redis 暫存購票紀錄
-        if (addSet)
-        {
-
-            var addTicketStopWatch = new Stopwatch();
-            addTicketStopWatch.Start();
-            await redisService.HashSetAllAsync(key, new Dictionary<string, string>
+            // 座位不存在 Set 判斷是否已售出
+            var checkTicketStopWatch = new Stopwatch();
+            checkTicketStopWatch.Start();
+            if (await redisService.KeyExistsAsync(key))
             {
-                { "EventId", model.EventId.ToString() },
-                { "SeatId", model.SeatId.ToString() },
-                { "Username", model.Username! },
-                { "CreateTime",model.CreateTime.ToString() }
-            });
-            await publisherService.Publish(JsonSerializer.Serialize(model));
-            addTicketStopWatch.Stop();
-            app.Logger.LogInformation($"Add Ticket Elapsed: {addTicketStopWatch.ElapsedMilliseconds} ms");
+                checkTicketStopWatch.Stop();
+                app.Logger.LogInformation($"Check Ticket Elapsed: {checkTicketStopWatch.ElapsedMilliseconds} ms");
+                return Results.BadRequest("Seat already sold");
+            }
+            else
+            {
+                checkSeatStopWatch.Stop();
+                app.Logger.LogInformation($"Check Seat Elapsed: {checkSeatStopWatch.ElapsedMilliseconds} ms");
+                return Results.BadRequest("Seat not found");
+            }
         }
-        else
+        // 購票成功在 Redis 暫存購票紀錄
+        var addTicketStopWatch = new Stopwatch();
+        addTicketStopWatch.Start();
+        await redisService.HashSetAllAsync(key, new Dictionary<string, string>
         {
-            return Results.BadRequest("Seat already sold");
-        }
+            { "EventId", model.EventId.ToString() },
+            { "SeatId", model.SeatId.ToString() },
+            { "Username", model.Username! },
+            { "CreateTime",model.CreateTime.ToString() }
+        });
+        await publisherService.Publish(JsonSerializer.Serialize(model));
+        addTicketStopWatch.Stop();
+        app.Logger.LogInformation($"Add Ticket Elapsed: {addTicketStopWatch.ElapsedMilliseconds} ms");
         return Results.Created($"/api/ticket/{model.EventId}/{model.SeatId}", model);
+
+
     }
     catch (Exception ex)
     {
