@@ -316,7 +316,7 @@ app.MapPost("/api/ticket", async (
         // 判斷活動是否存在
         var checkEventStopWatch = new Stopwatch();
         checkEventStopWatch.Start();
-        if (await redisService.KeyExistsAsync($"Event:{model.EventId}"))
+        if (!await redisService.KeyExistsAsync($"Event:{model.EventId}"))
         {
             return Results.BadRequest("Event not found");
         }
