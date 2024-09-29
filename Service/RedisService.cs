@@ -79,4 +79,9 @@ public class RedisService
     {
         return await _db.SetRemoveAsync(key, value);
     }
+    public async Task<List<string>> SetMembersAsync(string key)
+    {
+        var setValues = await _db.SetMembersAsync(key);
+        return setValues.Select(x => x.ToString()).ToList();
+    }
 }

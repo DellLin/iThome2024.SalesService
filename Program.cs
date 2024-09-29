@@ -283,6 +283,7 @@ app.MapPut("/api/event/{id}", async (int id, EventCreateViewModel model, [FromSe
     }
     await context.SaveChangesAsync();
     await redisService.KeyDeleteAsync($"Event:{id}");
+    await redisService.KeyDeleteAsync($"Seat:{id}");
     return Results.Ok(entity);
 });
 
@@ -360,8 +361,6 @@ app.MapPost("/api/ticket", async (
         addTicketStopWatch.Stop();
         app.Logger.LogInformation($"Add Ticket Elapsed: {addTicketStopWatch.ElapsedMilliseconds} ms");
         return Results.Created($"/api/ticket/{model.EventId}/{model.SeatId}", model);
-
-
     }
     catch (Exception ex)
     {
