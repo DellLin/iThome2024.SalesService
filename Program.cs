@@ -323,15 +323,15 @@ app.MapPost("/api/ticket", async (
         checkEventStopWatch.Stop();
         app.Logger.LogInformation($"Check Event Elapsed: {checkEventStopWatch.ElapsedMilliseconds} ms");
         // 判斷座位是否存在
-        var checkSeatStopWatch = new Stopwatch();
-        checkSeatStopWatch.Start();
-        var seats = JsonSerializer.Deserialize<List<Seat>>(eventObj["Seats"]);
-        if ((!seats?.Any(t => t.Id == model.SeatId)) ?? true)
-        {
-            return Results.BadRequest("Seat not found");
-        }
-        checkSeatStopWatch.Stop();
-        app.Logger.LogInformation($"Check Seat Elapsed: {checkSeatStopWatch.ElapsedMilliseconds} ms");
+        // var checkSeatStopWatch = new Stopwatch();
+        // checkSeatStopWatch.Start();
+        // var seats = JsonSerializer.Deserialize<List<Seat>>(eventObj["Seats"]);
+        // if ((!seats?.Any(t => t.Id == model.SeatId)) ?? true)
+        // {
+        //     return Results.BadRequest("Seat not found");
+        // }
+        // checkSeatStopWatch.Stop();
+        // app.Logger.LogInformation($"Check Seat Elapsed: {checkSeatStopWatch.ElapsedMilliseconds} ms");
         // 判斷座位是否已售出
         var checkTicketStopWatch = new Stopwatch();
         checkTicketStopWatch.Start();
